@@ -1,0 +1,15 @@
+---
+- name: "Application {{ app_name }} rollout"
+  hosts: "server_centos"
+  become: true
+  vars_files:
+    - defaults/main.yml
+  roles:
+   - { role: geerlingguy.nginx }
+   - postgres
+   - app
+
+  tasks:
+    - name: "Print app url"
+      ansible.builtin.debug:
+        msg: "Application {{ app_name }} available at: http://{{ ansible_ssh_host }}"

@@ -1,0 +1,21 @@
+[Unit]
+Description={{ app_name }} application
+After=network.target
+
+[Service]
+User={{ service_user }}
+Group={{ service_group }}
+WorkingDirectory=/app
+Environment="SECRET_KEY_BASE={{ secret_key_base }}"
+Environment="RAILS_ENV={{ rails_env }}"
+Environment="RAILS_LOG_TO_STDOUT={{ rails_log_to_stdout }}"
+Environment="DB_HOST={{ db_host }}"
+Environment="DB_PORT={{ db_port }}"
+Environment="DB_NAME={{ db_name }}"
+Environment="DB_USER={{ db_user }}"
+Environment="DB_PASSWORD={{ db_password }}"
+ExecStartPre=/usr/local/bin/bundle exec rake db:migrate
+ExecStart=/usr/local/bin/bundle exec "puma --bind unix:///var/lib/xpaste/puma.sock -e $RAILS_ENV config.ru"
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,146 @@
+- name: "Installing epel repo"
+  ansible.builtin.yum:
+    name: "epel-release"
+    state: "present"
+    update_cache: true
+
+- name: "Installing required packages"
+  ansible.builtin.yum:
+    name:
+       - "libxml2-devel"
+       - "@Development Tools"
+    state: "present"
+    update_cache: true
+
+- name: "Installing ruby build dependencies"
+  ansible.builtin.yum:
+    name:
+      - "openssl"
+      - "openssl-devel"
+      - "readline"
+      - "readline-devel"
+      - "libpqxx-devel"
+      - "libxslt-devel"
+    state: "present"
+    update_cache: true
+
+- name: "Create build directory"
+  file:
+    path: "/tmp/ruby"
+    state: "directory"
+
+- name: "Download ruby source"
+  ansible.builtin.get_url:
+    url: "https://cache.ruby-lang.org/pub/ruby/2.6/ruby-2.6.10.tar.gz"
+    dest: "/tmp/ruby/"
+    mode: "0640"
+
+- name: "Extract ruby-2.6.10.tar.gz"
+  ansible.builtin.unarchive:
+    remote_src: yes
+    src: "/tmp/ruby/ruby-2.6.10.tar.gz"
+    dest: "/tmp/ruby"
+
+- name: "configure"
+  command: chdir=/tmp/ruby/ruby-2.6.10 creates=/tmp/ruby/ruby-2.6.10/Makefile ./configure
+
+- name: "Build the default target"
+  make:
+    chdir: "/tmp/ruby/ruby-2.6.10"
+
+- name: "Run make install target"
+  make:
+    chdir: "/tmp/ruby/ruby-2.6.10"
+    target: install
+  become: yes
+
+- name: "Delete build directory"
+  file:
+    path: "/tmp/ruby"
+    state: "absent"
+
+- name: "Create app directory"
+  file:
+    path: "/app"
+    owner: nginx
+    group: nginx
+    state: "directory"
+      
+- name: "Clone source repository"
+  ansible.builtin.git:
+    repo: "https://{{git_user|urlencode()}}:{{git_pass|urlencode()}}@gitlab.slurm.io/edu/xpaste_practicum.git"
+    dest: "/app"
+  become: yes
+  become_user: nginx
+
+# - name: "Uncomment therubyracer"
+#   shell: sed -i "s/# gem 'therubyracer'/gem 'therubyracer'/" /app/Gemfile
+
+# - name: "Modify socket path"
+#   shell: sed -i "s#/var/run/puma.sock#/var/lib/xpaste/puma.sock#" /app/config/nginx.conf
+
+- name: "Uncomment therubyracer"
+  ansible.builtin.replace:
+    path: "/app/Gemfile"
+    regexp: "# gem 'therubyracer'"
+    replace: "gem 'therubyracer'"
+
+- name: "Modify socket path"
+  ansible.builtin.replace:
+    path: "/app/config/nginx.conf"
+    regexp: "/var/run/puma.sock"
+    replace: "/var/lib/xpaste/puma.sock"
+
+- name: "Replace file nginx.conf with supplied one"
+  copy:
+    remote_src: yes
+    src: "/app/config/nginx.conf"
+    dest: "/etc/nginx/nginx.conf"
+    owner: root
+    group: root
+    mode: 0644
+    
+- name: "Build application: bundle config"
+  shell:
+    cmd: /usr/local/bin/bundle config build.nokogiri --use-system-libraries
+  become: yes
+  become_user: nginx
+  args:
+    chdir: "/app"
+
+- name: "Build application: bundle install"
+  shell:
+    cmd: "/usr/local/bin/bundle install --clean --force --no-cache --without development"
+  become: yes
+  #become_user: nginx
+  args:
+    chdir: "/app"
+
+- name: "Copy service file"
+  ansible.builtin.template:
+    src: "service.service.j2"
+    dest: "/etc/systemd/system/{{ app_name }}.service"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: "Create socket directory"
+  file:
+    path: "/var/lib/{{ app_name }}"
+    owner: nginx
+    group: nginx
+    state: "directory"
+
+- name: "Start service"
+  ansible.builtin.systemd:
+    state: restarted
+    daemon_reload: true
+    name: "{{ app_name }}"
+    enabled: true
+
+- name: "Restart nginx"
+  ansible.builtin.systemd:
+    state: restarted
+    daemon_reload: true
+    name: nginx
+    enabled: true

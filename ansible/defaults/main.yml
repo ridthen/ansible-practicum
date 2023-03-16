@@ -1,0 +1,11 @@
+app_name: "xpaste"
+service_user: "nginx"
+service_group: "nginx"
+secret_key_base: "h37hFLcNnMkf4NgrFhvfkJL9VLwNkVVWHRcqKNtvgd4sPqvWMMWxpvqVpjzqKtfm"
+rails_env: "production"
+rails_log_to_stdout: 1
+db_host: "127.0.0.1"
+db_port: 5432
+db_name: "{{ app_name }}_production"
+db_user: "{{ app_name }}_dbuser"
+db_password: "NgrFhvfkJL9VL"
