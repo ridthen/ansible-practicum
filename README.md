@@ -1,9 +1,5 @@
 # Ansible course training application deployment
 
-##### Table of Contents
-1. [Software requirements](#Software requirements)
-2. [Steps to deploy](#Steps to run deployment)
-
 ### Software requirements
 
 The deployment has been tested with the following software:
